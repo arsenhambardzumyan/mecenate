@@ -72,7 +72,7 @@ interface InteractionSectionProps {
 const InteractionSection = React.memo(({ post, isPaid, onLikePress, onSortPress, sortOrder }: InteractionSectionProps) => {
   if (isPaid) return null;
   return (
-    <>
+    <View>
       <InteractionBar
         likesCount={post.likesCount}
         commentsCount={post.commentsCount}
@@ -88,7 +88,7 @@ const InteractionSection = React.memo(({ post, isPaid, onLikePress, onSortPress,
           </Text>
         </TouchableOpacity>
       </View>
-    </>
+    </View>
   );
 });
 
@@ -152,8 +152,7 @@ export const PostDetailsScreen: React.FC = () => {
     fetchNextPage,
     hasNextPage,
     isFetching,
-    isFetchingNextPage,
-    refetch: refetchComments
+    isFetchingNextPage
   } = useComments(postId, sortOrder);
 
   const { mutate: toggleLike } = useLikePost();
@@ -346,8 +345,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   divider: {
-    height: theme.dimensions.borderWidth,
-    backgroundColor: theme.colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
     marginHorizontal: theme.spacing.lg,
   },
   sectionTitle: {

@@ -34,31 +34,31 @@ export const useCommentSocket = (postId?: string) => {
               createdAt: remoteComment.createdAt || new Date().toISOString(),
             };
 
-            queryClient.setQueryData<InfiniteData<CommentsResponse>>(
-              ['comments', eventPostId],
+            queryClient.setQueriesData<InfiniteData<CommentsResponse>>(
+              { queryKey: ['comments', eventPostId] },
               (oldData) => {
                 if (!oldData) return oldData;
 
-                        const alreadyExists = oldData.pages.some(page =>
+                const alreadyExists = oldData.pages.some(page =>
                   page.data.comments.some(c => c.id === newComment.id)
                 );
-                
+
                 if (alreadyExists) {
-                                    return {
+                  return {
                     ...oldData,
                     pages: oldData.pages.map(page => ({
                       ...page,
                       data: {
                         ...page.data,
-                        comments: page.data.comments.map(c => 
+                        comments: page.data.comments.map(c =>
                           c.id === newComment.id ? newComment : c
-                        )
-                      }
-                    }))
+                        ),
+                      },
+                    })),
                   };
                 }
 
-                                const pages = [...oldData.pages];
+                const pages = [...oldData.pages];
                 pages[0] = {
                   ...pages[0],
                   data: {
@@ -71,22 +71,10 @@ export const useCommentSocket = (postId?: string) => {
               }
             );
 
-                        queryClient.setQueriesData<{ ok: boolean; data: { post: Post } }>(
-              { queryKey: ['post', eventPostId] },
-              (oldPost) => {
-                if (!oldPost) return oldPost;
-                return {
-                  ...oldPost,
-                  data: {
-                    ...oldPost.data,
-                    post: {
-                      ...oldPost.data.post,
-                      commentsCount: oldPost.data.post.commentsCount + 1
-                    }
-                  }
-                };
-              }
-            );
+            // Don't touch commentsCount here:
+            // - useAddCommentMutation already increments optimistically
+            // - post query is revalidated on settle
+            // Incrementing here causes " +2 then -1 " flicker when WS arrives.
           }
 
                     if (message.type === 'like_updated') {

@@ -2,6 +2,12 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient, InfiniteData }
 import { api } from '../api/api';
 import { Post, CommentsResponse, Comment } from '../types/api';
 
+type AddCommentApiResponse =
+  | { ok: boolean; data?: { comment?: Comment } }
+  | { data?: { comment?: Comment } }
+  | { comment?: Comment }
+  | unknown;
+
 export const usePost = (postId: string) => {
   return useQuery<{ ok: boolean; data: { post: Post } }>({
     queryKey: ['post', postId],
@@ -30,15 +36,6 @@ export const useComments = (postId: string, sortOrder: 'newest' | 'oldest' = 'ne
   });
 };
 
-export const useAddComment = (postId: string) => {
-  return useMutation({
-    mutationFn: async (text: string) => {
-      const response = await api.post(`/posts/${postId}/comments`, { text });
-      return response.data;
-    },
-  });
-};
-
 export const useAddCommentMutation = (postId: string) => {
   const queryClient = useQueryClient();
 
@@ -49,11 +46,14 @@ export const useAddCommentMutation = (postId: string) => {
     },
     onMutate: async (text: string) => {
       await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
 
-      const prevComments = queryClient.getQueryData<InfiniteData<CommentsResponse>>(['comments', postId]);
-      const postData = queryClient.getQueryData<{ ok: boolean; data: { post: Post } }>(['post', postId]);
+      const prevComments = queryClient.getQueriesData<InfiniteData<CommentsResponse>>({
+        queryKey: ['comments', postId],
+      });
+      const prevPost = queryClient.getQueryData<{ ok: boolean; data: { post: Post } }>(['post', postId]);
       
-      const author = postData?.data.post.author || {
+      const author = prevPost?.data.post.author || {
         id: 'me',
         username: 'me',
         displayName: 'Вы',
@@ -72,7 +72,7 @@ export const useAddCommentMutation = (postId: string) => {
         isLiked: false,
       };
 
-      queryClient.setQueryData<InfiniteData<CommentsResponse>>(['comments', postId], (old) => {
+      queryClient.setQueriesData<InfiniteData<CommentsResponse>>({ queryKey: ['comments', postId] }, (old) => {
         if (!old) return old;
         const newPages = [...old.pages];
         if (newPages[0]) {
@@ -80,8 +80,8 @@ export const useAddCommentMutation = (postId: string) => {
             ...newPages[0],
             data: {
               ...newPages[0].data,
-              comments: [optimisticComment, ...newPages[0].data.comments]
-            }
+              comments: [optimisticComment, ...newPages[0].data.comments],
+            },
           };
         }
         return { ...old, pages: newPages };
@@ -98,13 +98,21 @@ export const useAddCommentMutation = (postId: string) => {
         };
       });
 
-      return { prevComments, optimisticId: optimisticComment.id };
+      return { prevComments, prevPost, optimisticId: optimisticComment.id };
     },
-    onSuccess: (response, _text, context) => {
-      const realComment = response.data.comment;
-      if (!realComment) return;
+    onSuccess: (response: AddCommentApiResponse, _text, context) => {
+      const r = response as any;
+      const realComment: Comment | undefined =
+        r?.data?.comment ?? r?.comment ?? r?.data?.data?.comment ?? r?.data ?? undefined;
 
-      queryClient.setQueryData<InfiniteData<CommentsResponse>>(['comments', postId], (old) => {
+      if (!realComment) {
+        // If we can't extract a comment, force-sync from server.
+        queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+        queryClient.invalidateQueries({ queryKey: ['post', postId] });
+        return;
+      }
+
+      queryClient.setQueriesData<InfiniteData<CommentsResponse>>({ queryKey: ['comments', postId] }, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -112,18 +120,28 @@ export const useAddCommentMutation = (postId: string) => {
             ...page,
             data: {
               ...page.data,
-              comments: page.data.comments.map(c => 
+              comments: page.data.comments.map(c =>
                 c.id === context?.optimisticId ? realComment : c
-              )
-            }
-          }))
+              ),
+            },
+          })),
         };
       });
     },
     onError: (_err, _text, context) => {
-      if (context?.prevComments) {
-        queryClient.setQueryData(['comments', postId], context.prevComments);
+      if (context?.prevComments?.length) {
+        for (const [key, data] of context.prevComments) {
+          queryClient.setQueryData(key, data);
+        }
       }
+      if (context?.prevPost) {
+        queryClient.setQueryData(['post', postId], context.prevPost);
+      }
+    },
+    onSettled: () => {
+      // Ensure eventual consistency with WS/server.
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
     }
   });
 };
