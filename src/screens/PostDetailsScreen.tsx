@@ -22,7 +22,7 @@ import { theme } from '../theme/theme';
 import { PaidContentPlaceholder } from '../components/PaidContentPlaceholder';
 import { useLikePost } from '../hooks/useLikePost';
 import { useCommentSocket } from '../hooks/useCommentSocket';
-import {Post} from "../types/api";
+import {Post, Comment} from "../types/api";
 
 
 interface PostHeaderProps {
@@ -169,7 +169,7 @@ export const PostDetailsScreen: React.FC = () => {
     setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
   }, []);
 
-  const renderComment = React.useCallback(({ item }: { item: any }) => (
+  const renderComment = React.useCallback(({ item }: { item: Comment }) => (
     <CommentItem comment={item} />
   ), []);
 

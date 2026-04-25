@@ -1,10 +1,12 @@
 import React from 'react';
 import Svg, { Path, G, Rect, ClipPath, Defs } from 'react-native-svg';
 
+import { StyleProp, ViewStyle } from 'react-native';
+
 interface IconProps {
   size?: number;
   color?: string;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const CommentIcon: React.FC<IconProps> = ({ size = 15, color = '#57626F', style }) => (

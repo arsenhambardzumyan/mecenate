@@ -31,7 +31,7 @@ export const useComments = (postId: string, sortOrder: 'newest' | 'oldest' = 'ne
 };
 
 export const useAddComment = (postId: string) => {
-  return mutation({
+  return useMutation({
     mutationFn: async (text: string) => {
       const response = await api.post(`/posts/${postId}/comments`, { text });
       return response.data;
@@ -68,6 +68,8 @@ export const useAddCommentMutation = (postId: string) => {
         author,
         text,
         createdAt: new Date().toISOString(),
+        likesCount: 0,
+        isLiked: false,
       };
 
       queryClient.setQueryData<InfiniteData<CommentsResponse>>(['comments', postId], (old) => {

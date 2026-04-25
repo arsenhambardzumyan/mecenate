@@ -5,7 +5,7 @@ import { PostsResponse, Post, LikeResponse } from '../types/api';
 export const useLikePost = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<LikeResponse, Error, string>({
+  return useMutation<LikeResponse, Error, string, { previousPosts?: InfiniteData<PostsResponse>; previousPost?: { ok: boolean; data: { post: Post } } }>({
     mutationFn: toggleLike,
     onMutate: async (postId) => {
       await queryClient.cancelQueries({ queryKey: ['posts'] });
@@ -53,7 +53,7 @@ export const useLikePost = () => {
 
       return { previousPosts, previousPost };
     },
-    onError: (err, postId, context: any) => {
+    onError: (err, postId, context: { previousPosts?: InfiniteData<PostsResponse>; previousPost?: { ok: boolean; data: { post: Post } } } | undefined) => {
       if (context?.previousPosts) {
         queryClient.setQueriesData({ queryKey: ['posts'] }, context.previousPosts);
       }

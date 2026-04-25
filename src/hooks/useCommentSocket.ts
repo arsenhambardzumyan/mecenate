@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient, InfiniteData } from '@tanstack/react-query';
-import { CommentsResponse, Comment, Post } from '../types/api';
+import { CommentsResponse, Comment, Post, PostsResponse } from '../types/api';
 
 const WS_BASE_URL = 'wss://k8s.mectest.ru/test-app/ws';
 const TEST_TOKEN = '550e8400-e29b-41d4-a716-446655440000';
@@ -109,7 +109,7 @@ export const useCommentSocket = (postId?: string) => {
               }
             );
 
-                        queryClient.setQueriesData<InfiniteData<any>>(
+                        queryClient.setQueriesData<InfiniteData<PostsResponse>>(
               { queryKey: ['posts'] },
               (oldData) => {
                 if (!oldData) return oldData;
